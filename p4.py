@@ -12,7 +12,7 @@ LED_value = [11, 13, 15]
 LED_accuracy = 32
 btn_submit = 16
 btn_increase = 18
-buzzer = None
+buzzer = 33
 eeprom = ES2EEPROMUtils.ES2EEPROM()
 
 
@@ -64,10 +64,23 @@ def display_scores(count, raw_data):
 # Setup Pins
 def setup():
     # Setup board mode
+    GPIO.setmode(GPIO.BOARD)
+
     # Setup regular GPIO
+    GPIO.setup(LED_value, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(LED_accuracy, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(buzzer, GPIO.OUT, initial=GPIO.LOW)
+    
+    GPIO.setup(btn_submit, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(btn_increase, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    
     # Setup PWM channels
+    LED_pwm = GPIO.PWM(LED_accuracy, 50)
+    buzzer_pwm = GPIO.PWM(buzzer, 50)
+    
     # Setup debouncing and callbacks
-    pass
+    GPIO.add_event_detect(btn_submit, GPIO.FALLING, callback=btn_guess_pressed, bouncetime=200)
+    GPIO.add_event_detect(btn_increase, GPIO.FALLING, callback=btn_increase_pressed, bouncetime=200)
 
 
 # Load high scores
@@ -99,6 +112,9 @@ def generate_number():
 
 # Increase button pressed
 def btn_increase_pressed(channel):
+    # Test: turn LEDs ON
+    GPIO.output(LED_value, (1,1,1))
+
     # Increase the value shown on the LEDs
     # You can choose to have a global variable store the user's current guess, 
     # or just pull the value off the LEDs when a user makes a guess
