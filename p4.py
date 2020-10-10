@@ -3,6 +3,7 @@ import RPi.GPIO as GPIO
 import random
 import ES2EEPROMUtils
 import os
+import time
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
@@ -123,7 +124,13 @@ def btn_increase_pressed(channel):
 
 # Guess button
 def btn_guess_pressed(channel):
+    global end_of_game
+    
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
+    time.sleep(2)
+    if not GPIO.input(btn_submit):
+        end_of_game = True
+    
     # Compare the actual value with the user value displayed on the LEDs
     # Change the PWM LED
     # if it's close enough, adjust the buzzer
@@ -158,12 +165,15 @@ def trigger_buzzer():
 
 if __name__ == "__main__":
     try:
-        # Call setup function
-        setup()
-        welcome()
         while True:
-            menu()
-            pass
+            setup()
+            welcome()
+            while True:
+                menu()
+                if end_of_game:
+                    GPIO.cleanup()
+                    break # go back to top of outer loop
+
     except Exception as e:
         print(e)
     finally:
