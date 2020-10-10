@@ -7,6 +7,7 @@ import time
 
 # some global variables that need to change as we run the program
 end_of_game = None  # set if the user wins or ends the game
+guess_val = 0  # current guess value
 
 # DEFINE THE PINS USED HERE
 LED_value = [11, 13, 15]
@@ -113,12 +114,12 @@ def generate_number():
 
 # Increase button pressed
 def btn_increase_pressed(channel):
-    # Test: turn LEDs ON
-    GPIO.output(LED_value, (1,1,1))
-
+    global guess_val
+    
     # Increase the value shown on the LEDs
-    # You can choose to have a global variable store the user's current guess, 
-    # or just pull the value off the LEDs when a user makes a guess
+    guess_val += 1
+    guess_val %= 8
+    display_val()
     pass
 
 
@@ -143,6 +144,25 @@ def btn_guess_pressed(channel):
     # - Store the scores back to the EEPROM, being sure to update the score count
     pass
 
+def display_val():
+    global guess_val
+
+    if guess_val == 0:
+        GPIO.output(LED_value, (0,0,0))
+    if guess_val == 1:
+        GPIO.output(LED_value, (0,0,1))
+    if guess_val == 2:
+        GPIO.output(LED_value, (0,1,0))
+    if guess_val == 3:
+        GPIO.output(LED_value, (0,1,1))
+    if guess_val == 4:
+        GPIO.output(LED_value, (1,0,0))
+    if guess_val == 5:
+        GPIO.output(LED_value, (1,0,1))
+    if guess_val == 6:
+        GPIO.output(LED_value, (1,1,0))
+    if guess_val == 7:
+        GPIO.output(LED_value, (1,1,1))
 
 # LED Brightness
 def accuracy_leds():
