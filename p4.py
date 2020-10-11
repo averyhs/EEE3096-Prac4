@@ -9,6 +9,8 @@ import time
 end_of_game = None  # set if the user wins or ends the game
 guess_val = 0  # current guess value
 gen_val = None # random generated number
+new_score = 0 # current score of current player
+score_count = 0 # number of scores stored
 
 # DEFINE THE PINS USED HERE
 LED_value = [11, 13, 15]
@@ -42,6 +44,10 @@ def menu():
     option = option.upper()
     if option == "H":
         os.system('clear')
+        
+        # TEST: mock scores
+        eeprom.populate_mock_scores()
+        
         print("HIGH SCORES!!")
         s_count, ss = fetch_scores()
         display_scores(s_count, ss)
@@ -67,8 +73,12 @@ def menu():
 def display_scores(count, raw_data):
     # print the scores to the screen in the expected format
     print("There are {} scores. Here are the top 3!".format(count))
+    
     # print out the scores in the required format
-    pass
+    for i in range(0,3):
+        b = 4*i
+        name = raw_data[b] + raw_data[b+1] + raw_data[b+2]
+        print(i+1, "- ", name, "took", ord(raw_data[b+3]), "guesses")
 
 
 # Setup Pins
@@ -98,12 +108,15 @@ def setup():
 
 # Load high scores
 def fetch_scores():
-    # get however many scores there are
-    score_count = None
-    # Get the scores
-    
+    global score_count
+
+    # Get the scores (only need top 3)
+    scores = eeprom.read_block(1,12) # list length 12
+
     # convert the codes back to ascii
-    
+    for i in range(0,12):
+        scores[i] = chr(scores[i])
+
     # return back the results
     return score_count, scores
 
@@ -121,7 +134,7 @@ def save_scores():
 # Generate guess number
 def generate_number():
     global gen_val
-    gen_val =  random.randint(0, pow(2, 3))
+    gen_val = random.randint(0, pow(2, 3))
     return gen_val
 
 
@@ -138,10 +151,7 @@ def btn_increase_pressed(channel):
 
 # Guess button
 def btn_guess_pressed(channel):
-    global end_of_game
-    global gen_val
-    global LED_pwm
-    global buzzer_pwm
+    global end_of_game, gen_val, LED_pwm, buzzer_pwm, new_score, score_count
    
     LED_pwm.start(0)
     buzzer_pwm.start(0)
@@ -151,6 +161,8 @@ def btn_guess_pressed(channel):
     if not GPIO.input(btn_submit):
         end_of_game = True
     
+    new_score += 1
+
     # Compare the actual value with the user value displayed on the LEDs
     diff = abs(gen_val - guess_val)
 
@@ -165,6 +177,10 @@ def btn_guess_pressed(channel):
         # - tell the user and prompt them for a name
         username = input("You guessed the number!\nEnter your name: ")
 
+        # - increase score_count
+        score_count += 1
+
+        # - end game
         end_of_game = True
 
     # Change the PWM LED
