@@ -38,19 +38,16 @@ def welcome():
 def menu():
     global end_of_game
 
-    end_of_game = False # reset
+    end_of_game = False
 
     option = input("Select an option:   H - View High Scores     P - Play Game       Q - Quit\n")
     option = option.upper()
     if option == "H":
         os.system('clear')
-        
-        # TEST: mock scores
-        eeprom.populate_mock_scores()
-        
         print("HIGH SCORES!!")
         s_count, ss = fetch_scores()
         display_scores(s_count, ss)
+        menu()
     elif option == "P":
         os.system('clear')
         print("Starting a new round!")
@@ -71,14 +68,22 @@ def menu():
 
 
 def display_scores(count, raw_data):
+    if count == 0:
+        print("No scores yet")
+        pass
+    
     # print the scores to the screen in the expected format
-    print("There are {} scores. Here are the top 3!".format(count))
+    if count >= 3:
+        print("There are {} scores. Here are the top 3!".format(count))
     
     # print out the scores in the required format
-    for i in range(0,3):
+    r = count if(count<3) else 3
+
+    for i in range(r):
         b = 4*i
         name = raw_data[b] + raw_data[b+1] + raw_data[b+2]
         print(i+1, "- ", name, "took", ord(raw_data[b+3]), "guesses")
+    pass
 
 
 # Setup Pins
@@ -108,28 +113,70 @@ def setup():
 
 # Load high scores
 def fetch_scores():
-    global score_count
+    # Get number of scores
+    count = eeprom.read_byte(0)
 
-    # Get the scores (only need top 3)
-    scores = eeprom.read_block(1,12) # list length 12
+    # Get the scores
+    scores = eeprom.read_block(1,4*count)
 
     # convert the codes back to ascii
-    for i in range(0,12):
+    for i in range(0,4*count):
         scores[i] = chr(scores[i])
 
     # return back the results
-    return score_count, scores
+    return count, scores
 
 
 # Save high scores
-def save_scores():
+def save_scores(nm, scr):
     # fetch scores
-    # include new score
-    # sort
-    # update total amount of scores
-    # write new scores
-    pass
+    count, raw = fetch_scores()
 
+    # include new score
+    raw.append(nm[0])
+    raw.append(nm[1])
+    raw.append(nm[2])
+    raw.append(chr(scr)) # type consistency
+
+    # update total amount of scores
+    count += 1
+
+    # sort
+    # - make list with just score numbers
+    num = []
+    for i0 in range(0,count):
+        num.append(raw[4*i0+3])
+
+    # - sort num list
+    num.sort()
+
+    # - add score to list based on index of numeric
+    scores = []
+    for i1 in range(count):
+        b = i1*4
+        idx = num.index(raw[b+3])
+        d = 4*idx
+
+        num[idx] = None # prevent overwriting same score
+        
+        scores.insert(d, raw[b])
+        scores.insert(d+1, raw[b+1])
+        scores.insert(d+2, raw[b+2])
+        scores.insert(d+3, raw[b+3])
+
+    # cut off score list if it gets too long
+    # (eeprom has 4096 words, but we start from block 1, so 4092)
+    if len(scores) > 4092:
+        scores = scores[:4092]
+
+    # write score count
+    eeprom.write_byte(0, count)
+
+    # write new scores
+    reg = 4
+    for i2 in range(count*4):
+        eeprom.write_byte(reg, ord(scores[i2]))
+        reg += 1
 
 # Generate guess number
 def generate_number():
@@ -151,7 +198,7 @@ def btn_increase_pressed(channel):
 
 # Guess button
 def btn_guess_pressed(channel):
-    global end_of_game, gen_val, LED_pwm, buzzer_pwm, new_score, score_count
+    global end_of_game, gen_val, LED_pwm, buzzer_pwm, new_score
    
     LED_pwm.start(0)
     buzzer_pwm.start(0)
@@ -160,7 +207,8 @@ def btn_guess_pressed(channel):
     time.sleep(2)
     if not GPIO.input(btn_submit):
         end_of_game = True
-    
+
+    # Increase score
     new_score += 1
 
     # Compare the actual value with the user value displayed on the LEDs
@@ -175,10 +223,11 @@ def btn_guess_pressed(channel):
         GPIO.output(buzzer, 0)
 
         # - tell the user and prompt them for a name
-        username = input("You guessed the number!\nEnter your name: ")
+        name = input("You guessed the number!\nEnter your name: ")
+        name = name[:3] if (len(name)>3) else name # take only first 3 chars
 
-        # - increase score_count
-        score_count += 1
+        # - save score
+        save_scores(name, new_score)
 
         # - end game
         end_of_game = True
@@ -233,10 +282,16 @@ def trigger_buzzer():
     pass
 
 def clean_all():
-    global LED_pwm, buzzer_pwm
+    global LED_pwm, buzzer_pwm, new_score
+
+    # cleanup GPIO, incl pwm channels
     LED_pwm = None
     buzzer_pwm = None
     GPIO.cleanup()
+
+    # set conditions right for new game
+    end_of_game = False
+    new_score = 0
 
 if __name__ == "__main__":
     try:
