@@ -181,7 +181,7 @@ def save_scores(nm, scr):
 # Generate guess number
 def generate_number():
     global gen_val
-    gen_val = random.randint(0, pow(2, 3))
+    gen_val = random.randint(0, pow(2, 3)-1)
     return gen_val
 
 
